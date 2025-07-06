@@ -1,64 +1,19 @@
 #include <array>
 #include <cassert>
 #include <iostream>
+#include <vector>
 
 #include "cardset.h"
 #include "showdown.h"
 #include "types.h"
 #include "util.h"
 
-constexpr CardSet get_hand_successor(CardSet cards) {
-
-    constexpr CardSet first_hand = 0b1111111ULL;
-    constexpr CardSet last_hand = first_hand << 45;
-
-    if (cards.none()) {
-        return first_hand;
-    }
-
-    assert(cards.count() == 7);
-    assert(cards.to_ullong() != last_hand);
-
-    CardSet copy = cards;
-    Card incrementer;
-
-    do {
-        incrementer = pop_card(copy);
-        assert(incrementer < NUM_CARDS);
-    } while (copy.test(incrementer + 1));
-
-    const uint64_t remove_mask = (1ULL << (incrementer + 1)) - 1;
-    const uint64_t replacement_mask = (1ULL << (6 - copy.count())) - 1;
-    cards = (cards.to_ullong() & ~remove_mask) | replacement_mask;
-    cards.set(incrementer + 1);
-
-    assert(cards.count() == 7);
-
-    return cards;
-}
-
-constexpr size_t get_hand_index(CardSet cards) {
-    assert(cards.count() == 7);
-
-    size_t index = 0;
-
-    for (size_t i = 1; i <= 7; ++i) {
-        const Card card = pop_card(cards);
-        index += ncr(card, i);
-    }
-
-    assert(cards.none());
-    assert(index < ncr(52, 7));
-
-    return index;
-}
-
 constexpr bool has_straight(CardSetSuitless cards) {
     const uint16_t mask = (cards.to_ulong() << 1) | (cards.to_ulong() >> ACE);
     return mask & (mask >> 1) & (mask >> 2) & (mask >> 3) & (mask >> 4);
 }
 
-constexpr HandType get_hand_type(CardSet cards) {
+HandType get_hand_type(CardSet cards) {
     assert(cards.count() == 7);
 
     bool has_flush = false;
@@ -114,23 +69,40 @@ constexpr HandType get_hand_type(CardSet cards) {
 
     return HIGH_CARD;
 }
-
-// std::array<HandType, ncr(52, 7)> hand_type_lookup = []() {
-//     std::array<HandType, ncr(52, 7)> lookup = { HIGH_CARD };
-//     CardSet cards = 0;
-//     for (size_t i = 0; i < ncr(52, 7); i++) {
-//         cards = get_hand_successor(cards);
-//         lookup[i] = get_hand_type(cards);
-//     }
-//     return lookup;
-// }();
-
-// constexpr HandType get_hand_type_by_lookup(CardSet cards) {
-//     assert(cards.count() == 7);
-//     return hand_type_lookup[get_hand_index(cards)];
-// }
-
 HandStrength get_hand_strength(CardSet cards) {
     assert(cards.count() == 7);
-    return get_hand_type(cards);
+    HandType type = get_hand_type(cards);
+    HandType kickers = 0; // TODO: implement kickers
+    return make_hand_strength(type, kickers);
+}
+
+void add_to_leaderboard(Leaderboard& leaderboard, Player player, HandStrength strength) {
+    size_t i;
+    for (i = 0; i < leaderboard.size(); i++) {
+        LeaderboardLevel& level = leaderboard[i];
+        if (level.strength == strength) {
+            level.players.push_back(player);
+            return;
+        }
+        else if (level.strength < strength) {
+            break;
+        }
+    }
+
+    LeaderboardLevel level;
+    level.strength = strength;
+    level.players = { player };
+    leaderboard.insert(leaderboard.begin() + i, level);
+}
+
+Leaderboard get_leaderboard(std::vector<CardSet> player_hands) {
+    Leaderboard leaderboard = {};
+    std::vector<HandStrength> level_strengths;
+    for (Player player = 0; player < player_hands.size(); ++player) {
+        const CardSet hand = player_hands[player];
+        const HandStrength strength = get_hand_strength(hand);
+
+        add_to_leaderboard(leaderboard, player, strength);
+    }
+    return leaderboard;
 }

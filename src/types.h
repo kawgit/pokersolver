@@ -1,9 +1,11 @@
 #pragma once
 
 #include <array>
-#include <cassert>
 #include <bitset>
+#include <cassert>
+#include <deque>
 #include <stdint.h>
+#include <vector>
 
 typedef uint8_t Card;
 typedef uint8_t Rank;
@@ -12,7 +14,16 @@ typedef uint8_t Player;
 typedef int Stack;
 typedef std::bitset<52> CardSet;
 typedef std::bitset<13> CardSetSuitless;
+typedef uint8_t HandType;
+typedef uint32_t HandKickers;
+typedef uint32_t HandStrength;
 
+struct LeaderboardLevel {
+    HandStrength strength;
+    std::vector<Player> players;
+};
+
+typedef std::deque<LeaderboardLevel> Leaderboard;
 
 enum Ranks : Rank {
     TWO,
@@ -41,6 +52,7 @@ enum Suits : Suit {
 
 enum Cards : Card {
     NUM_CARDS = NUM_RANKS * NUM_SUITS,
+    NO_CARD = NUM_CARDS
 };
 
 enum Stacks : Stack {

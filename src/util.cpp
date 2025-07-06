@@ -1,6 +1,7 @@
 #include <cassert>
 #include <string>
 
+#include "showdown.h"
 #include "types.h"
 #include "util.h"
 
@@ -34,8 +35,37 @@ std::string suit_to_string(Suit suit) {
 }
 
 std::string card_to_string(Card card) {
-    if (card > NUM_CARDS) return "[]";
+    if (card == NO_CARD) return "[]";
+    assert(card <= NUM_CARDS);
     return rank_to_string(get_rank(card)) + suit_to_string(get_suit(card));
+}
+
+std::string handtype_to_string(HandType handtype) {
+    switch (handtype) {
+        case HIGH_CARD: return "HIGH_CARD";
+        case PAIR: return "PAIR";
+        case TWO_PAIR: return "TWO_PAIR";
+        case THREE_OF_A_KIND: return "THREE_OF_A_KIND";
+        case STRAIGHT: return "STRAIGHT";
+        case FLUSH: return "FLUSH";
+        case FULL_HOUSE: return "FULL_HOUSE";
+        case FOUR_OF_A_KIND: return "FOUR_OF_A_KIND";
+        case STRAIGHT_FLUSH: return "STRAIGHT_FLUSH";
+        default: return "?";
+    }
+}
+
+std::string leaderboard_to_string(const Leaderboard& leaderboard) {
+    std::string result = "Strength, Player List\n";
+    for (const LeaderboardLevel& level : leaderboard) {
+        result += handtype_to_string(get_hand_type(level.strength)) + " (";
+        result += std::to_string(level.strength) + "):";
+        for (const Player player : level.players) {
+            result += " " + std::to_string(player);
+        }
+        result += "\n";
+    }
+    return result;
 }
 
 int get_random_int(int min, int max) {

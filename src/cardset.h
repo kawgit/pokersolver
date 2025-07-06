@@ -1,11 +1,11 @@
 #include "types.h"
 
-namespace cs {
-
 constexpr CardSet CARDSET_NONE = 0;
 constexpr CardSet CARDSET_ALL = 0xFFFF;
 constexpr CardSetSuitless CARDSETSUITLESS_NONE = 0;
 constexpr CardSetSuitless CARDSETSUITLESS_ALL = 0xFFFF;
+
+namespace cs {
 
 constexpr CardSet of_rank(Rank rank) {
     constexpr std::array<CardSet, NUM_RANKS> CARDSETS_BY_RANK = []() {

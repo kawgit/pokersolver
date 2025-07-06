@@ -21,9 +21,6 @@
     Thus, we can use a 32 bit int to store the hand strength
 */
 
-typedef uint32_t HandStrength;
-typedef uint8_t HandType;
-
 enum HandTypes : HandType {
     HIGH_CARD,
     PAIR,
@@ -37,7 +34,18 @@ enum HandTypes : HandType {
     NUM_HANDTYPES
 };
 
-constexpr CardSet get_hand_successor(CardSet cards);
-constexpr size_t get_hand_index(CardSet cards);
-constexpr HandType get_hand_type(CardSet cards);
+constexpr HandType get_hand_type(HandStrength strength) {
+    return strength >> 20;
+}
+
+constexpr HandKickers get_hand_kickers(HandStrength strength) {
+    return strength & ((1L << 20) - 1);
+}
+
+constexpr HandStrength make_hand_strength(HandType handtype, HandKickers kickers) {
+    return (handtype << 20) | kickers;
+}
+
+HandType get_hand_type(CardSet cards);
 HandStrength get_hand_strength(CardSet cards);
+Leaderboard get_leaderboard(std::vector<CardSet> player_hands);
