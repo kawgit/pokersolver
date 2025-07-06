@@ -48,4 +48,4 @@ constexpr HandStrength make_hand_strength(HandType handtype, HandKickers kickers
 
 HandType get_hand_type(CardSet cards);
 HandStrength get_hand_strength(CardSet cards);
-Leaderboard get_leaderboard(std::vector<CardSet> player_hands);
+Leaderboard get_leaderboard(CardSet river_cards, std::vector<CardSet> player_cards);

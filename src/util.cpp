@@ -5,6 +5,31 @@
 #include "types.h"
 #include "util.h"
 
+template <typename T>
+std::string ints_to_string(std::vector<T> vector) {
+    if (vector.empty()) {
+        return "[]";
+    }
+    std::string result = "[";
+    result += std::to_string(vector[0]);
+    for (size_t i = 1; i < vector.size(); i++) {
+        result += ", ";
+        result += std::to_string(vector[i]);
+    }
+    result += "]";
+    return result;
+}
+
+template std::string ints_to_string<uint8_t>(std::vector<uint8_t> vector);
+template std::string ints_to_string<uint16_t>(std::vector<uint16_t> vector);
+template std::string ints_to_string<uint32_t>(std::vector<uint32_t> vector);
+template std::string ints_to_string<uint64_t>(std::vector<uint64_t> vector);
+
+template std::string ints_to_string<int8_t>(std::vector<int8_t> vector);
+template std::string ints_to_string<int16_t>(std::vector<int16_t> vector);
+template std::string ints_to_string<int32_t>(std::vector<int32_t> vector);
+template std::string ints_to_string<int64_t>(std::vector<int64_t> vector);
+
 std::string rank_to_string(Rank rank) {
     switch (rank) {
         case ACE: return "A";
@@ -53,6 +78,18 @@ std::string handtype_to_string(HandType handtype) {
         case STRAIGHT_FLUSH: return "STRAIGHT_FLUSH";
         default: return "?";
     }
+}
+
+std::string cardset_to_string(CardSet set) {
+    std::string result = set.to_string() + ": [";
+    for (size_t i = 0; i < NUM_CARDS; i++) {
+        if (set[i]) {
+            result += card_to_string(i);
+            result += ", ";
+        }
+    }
+    result += "]";
+    return result;
 }
 
 std::string leaderboard_to_string(const Leaderboard& leaderboard) {

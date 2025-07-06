@@ -1,9 +1,9 @@
 #include "types.h"
 
 constexpr CardSet CARDSET_NONE = 0;
-constexpr CardSet CARDSET_ALL = 0xFFFF;
+constexpr CardSet CARDSET_ALL = (1ULL << NUM_CARDS) - 1;
 constexpr CardSetSuitless CARDSETSUITLESS_NONE = 0;
-constexpr CardSetSuitless CARDSETSUITLESS_ALL = 0xFFFF;
+constexpr CardSetSuitless CARDSETSUITLESS_ALL = (1ULL << NUM_RANKS) - 1;
 
 namespace cs {
 

@@ -23,9 +23,9 @@ add_executable(poker_solver
 
 add_executable(test
   test.cpp
-  showdown.cpp
   util.cpp
-  # table.cpp
+  showdown.cpp
+  table.cpp
 )
 
 target_include_directories(poker_solver PUBLIC src)

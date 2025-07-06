@@ -6,9 +6,13 @@
 
 #include "types.h"
 
+template <typename T>
+std::string ints_to_string(std::vector<T> players);
+
 std::string rank_to_string(Rank rank);
 std::string suit_to_string(Suit suit);
 std::string card_to_string(Card card);
+std::string cardset_to_string(CardSet set);
 std::string leaderboard_to_string(const Leaderboard& leaderboard);
 
 int get_random_int(int min, int max);

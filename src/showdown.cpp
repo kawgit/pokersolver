@@ -95,13 +95,15 @@ void add_to_leaderboard(Leaderboard& leaderboard, Player player, HandStrength st
     leaderboard.insert(leaderboard.begin() + i, level);
 }
 
-Leaderboard get_leaderboard(std::vector<CardSet> player_hands) {
+Leaderboard get_leaderboard(CardSet river_cards, std::vector<CardSet> player_cards) {
+    assert(river_cards.count() == 5);
     Leaderboard leaderboard = {};
     std::vector<HandStrength> level_strengths;
-    for (Player player = 0; player < player_hands.size(); ++player) {
-        const CardSet hand = player_hands[player];
+    for (Player player = 0; player < player_cards.size(); ++player) {
+        assert(player_cards[player].count() == 2);
+        const CardSet hand = river_cards | player_cards[player];
+        assert(hand.count() == 7);
         const HandStrength strength = get_hand_strength(hand);
-
         add_to_leaderboard(leaderboard, player, strength);
     }
     return leaderboard;
