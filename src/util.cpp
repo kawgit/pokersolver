@@ -65,6 +65,20 @@ std::string card_to_string(Card card) {
     return rank_to_string(get_rank(card)) + suit_to_string(get_suit(card));
 }
 
+std::string cards_to_string(std::vector<Card> cards) {
+    if (cards.empty()) {
+        return "[]";
+    }
+    std::string result = "[";
+    result += card_to_string(cards[0]);
+    for (size_t i = 1; i < cards.size(); i++) {
+        result += ", ";
+        result += card_to_string(cards[i]);
+    }
+    result += "]";
+    return result;
+}
+
 std::string handtype_to_string(HandType handtype) {
     switch (handtype) {
         case HIGH_CARD: return "HIGH_CARD";
@@ -81,20 +95,19 @@ std::string handtype_to_string(HandType handtype) {
 }
 
 std::string cardset_to_string(CardSet set) {
-    std::string result = set.to_string() + ": [";
+    std::vector<Card> cards = {};
     for (size_t i = 0; i < NUM_CARDS; i++) {
         if (set[i]) {
-            result += card_to_string(i);
-            result += ", ";
+            cards.push_back(i);
         }
-    }
-    result += "]";
-    return result;
+    };
+    return cards_to_string(cards);
 }
 
 std::string leaderboard_to_string(const Leaderboard& leaderboard) {
-    std::string result = "Strength, Player List\n";
+    std::string result = "Showdown\n";
     for (const LeaderboardLevel& level : leaderboard) {
+        result += "  ";
         result += handtype_to_string(get_hand_type(level.strength)) + " (";
         result += std::to_string(level.strength) + "):";
         for (const Player player : level.players) {
@@ -102,6 +115,30 @@ std::string leaderboard_to_string(const Leaderboard& leaderboard) {
         }
         result += "\n";
     }
+    return result;
+}
+
+std::string status_to_string(const PlayerStatus status) {
+    switch (status) {
+        case PLAYING: return "PLAYING";
+        case FOLDED: return "FOLDED";
+        case ALL_IN: return "ALL_IN";
+        case BUSTED: return "BUSTED";
+        default: return "?";
+    }
+}
+
+std::string statuses_to_string(const std::vector<PlayerStatus>& statuses) {
+    if (statuses.empty()) {
+        return "[]";
+    }
+    std::string result = "[";
+    result += status_to_string(statuses[0]);
+    for (size_t i = 1; i < statuses.size(); i++) {
+        result += ", ";
+        result += status_to_string(statuses[i]);
+    }
+    result += "]";
     return result;
 }
 

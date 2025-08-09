@@ -16,7 +16,7 @@ Table::Table(size_t num_players, Stack init_stack)
     player_stacks(num_players, 0),
     player_bets(num_players, 0),
     player_pots(num_players, 0),
-    player_folds(num_players, 0),
+    player_statuses(num_players, PLAYING),
     total_chips_at_table(num_players * init_stack)
 {
   assert(num_players >= 2);
@@ -27,7 +27,7 @@ Table::Table(size_t num_players, Stack init_stack)
 }
 
 void Table::assert_ok() {
-  assert(player_folds.size() == num_players);
+  assert(player_statuses.size() == num_players);
   assert(player_cards.size() == num_players);
   assert(player_bets.size() == num_players);
   assert(player_pots.size() == num_players);
@@ -61,23 +61,13 @@ void Table::assert_ok() {
     assert(turn_cards.count() == 4);
     assert(river_cards.count() == 5);
   }
-  std::cout << std::to_string(max_bet) << std::endl;
-  std::cout << ints_to_string<Stack>(player_bets) << std::endl;
+
   assert(max_bet == *std::max_element(player_bets.begin(), player_bets.end()));
-  
-  Stack pot_total = 0;
-  Stack stack_total = 0;
-  for (int i = 0; i < num_players; ++i) {
-    pot_total += player_bets[i];
-    pot_total += player_pots[i];
-    stack_total += player_stacks[i];
-  }
-  assert(pot == pot_total);
+  assert(pot == std::accumulate(player_pots.begin(), player_pots.end(), 0));
+  assert(pot + std::accumulate(player_stacks.begin(), player_stacks.end(), 0) == total_chips_at_table);
 
   assert(player_to_move < num_players);
   assert(closer < num_players);
-
-  assert(stack_total + pot_total == total_chips_at_table);
 
 }
 
@@ -99,28 +89,45 @@ void Table::set_stacks(Stack stack) {
 }
 
 void Table::reset() {
+  std::cout << "Reset" << std::endl;
+
   assert(player_cards.size() == num_players);
   assert(player_stacks.size() == num_players);
   assert(player_bets.size() == num_players);
   assert(player_pots.size() == num_players);
-  assert(player_folds.size() == num_players);
+  assert(player_statuses.size() == num_players);
 
   deck_cards = CARDSET_ALL;
   flop_cards = CARDSET_NONE;
   turn_cards = CARDSET_NONE;
   river_cards = CARDSET_NONE;
   pot = 0;
+  closer = 1;
+  max_bet = 0;
 
-  std::fill(player_folds.begin(), player_folds.end(), true);
+  std::fill(player_statuses.begin(), player_statuses.end(), PLAYING);
   std::fill(player_cards.begin(), player_cards.end(), CARDSET_NONE);
   std::fill(player_bets.begin(), player_bets.end(), 0);
   std::fill(player_pots.begin(), player_pots.end(), 0);
 }
 
 void Table::deal() {
+
+  std::fill(player_statuses.begin(), player_statuses.end(), PLAYING);
+
+  for (Player player = 0; player < num_players; ++player) {
+    if (player_stacks[player] == 0) {
+      player_statuses[player] = BUSTED;
+    }
+  }
+
+  std::cout << "Deal" << std::endl;
+
   for (size_t i = 0; i < num_players; ++i) {
     player_cards[i].set(draw(deck_cards));
     player_cards[i].set(draw(deck_cards));
+
+    std::cout << "  Player " << static_cast<int>(i) << " was dealt " << cardset_to_string(player_cards[i]) << std::endl;
   }
 
   bet(0, SMALL_BLIND);
@@ -128,36 +135,77 @@ void Table::deal() {
 
   player_to_move = 2 % num_players;
   closer = 1;
+
 }
 
 void Table::flop() {
+  std::cout << "Flop" << std::endl;
+
+  assert(flop_cards.none());
+  assert(turn_cards.none());
+  assert(river_cards.none());
+
   flop_cards.set(draw(deck_cards));
   flop_cards.set(draw(deck_cards));
   flop_cards.set(draw(deck_cards));
 
+  std::cout << "  Community Cards: " << cardset_to_string(flop_cards) << std::endl;
+
   player_to_move = num_players == 2 ? 1 : 0;
-  closer = num_players - 1;
+  closer = (player_to_move - 1) % num_players;
 }
 
 void Table::turn() {
+  
+  std::cout << "Turn" << std::endl;
+
+  assert(flop_cards.count() == 3);
+  assert(turn_cards.none());
+  assert(river_cards.none());
+  
   turn_cards = flop_cards;
   turn_cards.set(draw(deck_cards));
 
+  std::cout << "  Community Cards: " << cardset_to_string(turn_cards) << std::endl;
+
   player_to_move = num_players == 2 ? 1 : 0;
-  closer = num_players - 1;
+  closer = (player_to_move - 1) % num_players;
 }
 
 void Table::river() {
+
+  std::cout << "River" << std::endl;
+
+  assert(flop_cards.count() == 3);
+  assert(turn_cards.count() == 4);
+  assert(river_cards.none());
+
   river_cards = turn_cards;
   river_cards.set(draw(deck_cards));
 
+  std::cout << "  Community Cards: " << cardset_to_string(river_cards) << std::endl;
+
   player_to_move = num_players == 2 ? 1 : 0;
-  closer = num_players - 1;
+  closer = (player_to_move - 1) % num_players;
+}
+
+void Table::folds_to() {
+
+  assert(std::count_if(player_statuses.begin(), player_statuses.end(), is_player_status_in) == 1);
+
+  const Player player_still_in = std::find_if(player_statuses.begin(), player_statuses.end(), is_player_status_in) - player_statuses.begin();
+  const Stack pot = collect_pots(player_pots[player_still_in]);
+  award(player_still_in, pot);
+
+  std::cout << "  Player stacks: " << ints_to_string(player_stacks) << std::endl;
+
 }
 
 void Table::showdown() {
 
   Leaderboard leaderboard = get_leaderboard(river_cards, player_cards);
+
+  std::cout << leaderboard_to_string(leaderboard) << std::endl;
 
   for (size_t winning_level = 0; winning_level < leaderboard.size(); winning_level++) {
     
@@ -167,29 +215,61 @@ void Table::showdown() {
       return player_pots[a] < player_pots[b];
     });
     
-    std::cout << ints_to_string<Player>(winners) << std::endl;
+    for (Player pot_limiter : winners) {
+      Stack pot = collect_pots(player_pots[pot_limiter]);
 
-    // for (size_t losing_level = winning_level; losing_level < leaderboard.size(); losing_level++) {
-      
-    // }
+      if (pot == 0) {
+        continue;
+      }
+
+      for (Player player : winners) {
+        award(player, pot / winners.size());
+      }
+    }
   }
 }
 
 void Table::step() {
+
+  assert_ok();
+
   if (deck_cards == CARDSET_ALL) {
     deal();
-  }
-  
-  act();
-
-  if (player_to_move != closer) {
-    player_to_move = (player_to_move + 1) % num_players;
-    assert_ok();
     return;
   }
 
+  while (player_statuses[player_to_move] != PLAYING) {
+    assert(player_to_move != closer);
+    player_to_move = (player_to_move + 1) % num_players;
+  }
+
+  act();
+  
+  if (player_to_move == closer || std::count(player_statuses.begin(), player_statuses.end(), PLAYING) < 2) {
+    end_round();
+  }
+  else {
+    player_to_move = (player_to_move + 1) % num_players;
+  }
+}
+
+void Table::end_round() {
   collect_bets();
-  if (flop_cards.none()) {
+
+  if (std::count_if(player_statuses.begin(), player_statuses.end(), is_player_status_in) == 1) {
+    folds_to();
+    reset();
+    return;
+  }
+  else if (std::count(player_statuses.begin(), player_statuses.end(), PLAYING) < 2) {
+    if (flop_cards.none()) flop();
+    if (turn_cards.none()) turn();
+    if (river_cards.none()) river();
+    showdown();
+    reset();
+    return;
+  }
+  else if (flop_cards.none()) {
     flop();
   }
   else if (turn_cards.none()) {
@@ -200,95 +280,119 @@ void Table::step() {
   }
   else {
     showdown();
+    reset();
   }
-
-  assert_ok();
 }
 
 void Table::act() {
 
   assert(player_bets[player_to_move] <= max_bet);
+  assert(player_statuses[player_to_move] == PLAYING);
 
-  if (is_all_in(player_to_move) || is_folded(player_to_move)) {
-    return;
-  }
+  const int action = get_random_int(0, 9);
 
-  const int action = rand() % 10;
-
-  if (max_bet > player_bets[player_to_move] && action <= 2) {
+  if (max_bet > player_bets[player_to_move] && action < 1) {
     fold(player_to_move);
-  } else if (action <= 5) {
+  } else if (action < 8) {
     match(player_to_move);
   } else {
-    raise(player_to_move, std::max(int(BIG_BLIND), 2 * max_bet));
+    raise(player_to_move, std::max(int(BIG_BLIND), 2 * max_bet - player_bets[player_to_move]));
   }
 
 }
 
 void Table::fold(Player player) {
-  std::cout << "Player " << std::to_string(player) << " folds" << std::endl;
+  std::cout << "  Player " << std::to_string(player) << " folds" << std::endl;
 
   assert(player_bets[player] < max_bet);
+  assert(player_statuses[player_to_move] == PLAYING);
 
-  player_folds[player] = true;
+  player_statuses[player] = FOLDED;
 }
 
 void Table::match(Player player) {
   
   if (player_bets[player] == max_bet) {
-    std::cout << "Player " << std::to_string(player) << " checks" << std::endl;
-    
+    std::cout << "  Player " << std::to_string(player) << " checks" << std::endl;
     return;
   }
   
-  std::cout << "Player " << std::to_string(player) << " calls" << std::endl;
-  
   assert(max_bet >= 2 * player_bets[player]);
-
   bet(player, max_bet - player_bets[player]);
+  std::cout << "  Player " << std::to_string(player) << " calls. The pot is now " << std::to_string(pot) << std::endl;
 }
 
 void Table::raise(Player player, Stack amount) {
-  std::cout << "Player " << std::to_string(player) << " raises " << std::to_string(amount) << std::endl;
-
-  assert(amount >= BIG_BLIND);
-  assert(amount >= 2 * max_bet);
-  assert(amount <= player_stacks[player]);
+  assert(amount + player_bets[player] >= BIG_BLIND);
+  assert(amount + player_bets[player] >= 2 * max_bet);
+  assert(amount + player_bets[player] <= player_stacks[player]);
 
   bet(player, amount);
+
+  closer = (player - 1) % num_players;
+
+  std::cout << "  Player " << std::to_string(player) << " raises to " << std::to_string(player_bets[player]) << ". The pot is now " << std::to_string(pot) << std::endl;
 }
 
 void Table::bet(Player player, Stack amount) {
-  
   assert(amount >= SMALL_BLIND);
   assert(amount <= player_stacks[player]);
+  assert(amount + player_bets[player] == max_bet || amount + player_bets[player] >= 2 * max_bet);
 
   player_stacks[player] -= amount;
   player_bets[player] += amount;
+  player_pots[player] += amount;
 
   max_bet = std::max(max_bet, player_bets[player]);
   pot += amount;
-  closer = (player - 1) % num_players;
+}
+
+void Table::award(Player player, Stack amount) {
+  player_stacks[player] += amount;
+
+  std::cout << "  Player " << std::to_string(player) << " wins " << std::to_string(amount) << std::endl;
 }
 
 void Table::collect_bets() {
   for (Player player = 0; player < num_players; ++player) {
-    player_pots[player] += player_bets[player];
     player_bets[player] = 0;
   }
   max_bet = 0;
 }
 
-bool Table::is_folded(Player player) {
-  assert(player < num_players);
-  return !player_folds[player];
-}
+Stack Table::collect_pots(Stack amount) {
+  Stack collected = 0;
 
-bool Table::is_all_in(Player player) {
-  assert(player < num_players);
-  return player_stacks[player] == 0 && player_folds[player];
+  for (Player player = 0; player < num_players; ++player) {
+    const Stack amount_to_collect = std::min(player_pots[player], amount);
+    player_pots[player] -= amount_to_collect;
+    pot -= amount_to_collect;
+    collected += amount_to_collect;
+  }
+
+  return collected;
 }
 
 void Table::print() {
+    std::cout << "--- Table State ---" << std::endl;
+    std::cout << "Pot: " << pot << std::endl;
+    std::cout << "Max Bet: " << max_bet << std::endl;
+    std::cout << "Player to Move: " << static_cast<int>(player_to_move) << std::endl;
+    std::cout << "Community Cards: ";
+    std::cout << cardset_to_string(river_cards | turn_cards | flop_cards) << std::endl;
 
+    std::cout << "Player Bets" << std::endl;
+    for (Player i = 0; i < num_players; ++i) {
+        std::cout << "  Player " << static_cast<int>(i) << " Bet: " << player_bets[i] << std::endl;
+    }
+
+    for (Player i = 0; i < num_players; ++i) {
+        std::cout << "Player " << static_cast<int>(i) << ":" << std::endl;
+        std::cout << "  Status: " << status_to_string(player_statuses[i]) << std::endl;
+        std::cout << "  Hand: " << cardset_to_string(player_cards[i]) << std::endl;
+        std::cout << "  Stack: " << player_stacks[i] << std::endl;
+        std::cout << "  Current Bet: " << player_bets[i] << std::endl;
+        std::cout << "  Total Pot Contribution: " << player_pots[i] << std::endl;
+    }
+    std::cout << "-------------------" << std::endl;
 }

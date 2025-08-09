@@ -17,6 +17,7 @@ typedef std::bitset<13> CardSetSuitless;
 typedef uint8_t HandType;
 typedef uint32_t HandKickers;
 typedef uint32_t HandStrength;
+typedef uint8_t PlayerStatus;
 
 struct LeaderboardLevel {
     HandStrength strength;
@@ -73,3 +74,15 @@ constexpr Rank get_rank(Card card) {
 constexpr Suit get_suit(Card card) {
     return card / NUM_RANKS;
 }
+
+enum PlayerStatuses : PlayerStatus {
+    PLAYING,
+    FOLDED,
+    ALL_IN,
+    BUSTED,
+    NUM_PLAYER_STATUSES
+};
+
+const auto is_player_status_in = [](PlayerStatus status) {
+    return status == PLAYING || status == ALL_IN;
+};

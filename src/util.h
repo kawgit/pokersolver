@@ -12,8 +12,11 @@ std::string ints_to_string(std::vector<T> players);
 std::string rank_to_string(Rank rank);
 std::string suit_to_string(Suit suit);
 std::string card_to_string(Card card);
+std::string handtype_to_string(HandType handtype);
 std::string cardset_to_string(CardSet set);
 std::string leaderboard_to_string(const Leaderboard& leaderboard);
+std::string status_to_string(const PlayerStatus status);
+std::string statuses_to_string(const std::vector<PlayerStatus>& statuses);
 
 int get_random_int(int min, int max);
 

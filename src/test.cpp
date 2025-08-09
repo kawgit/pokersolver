@@ -7,6 +7,8 @@
 
 int main() {
 
+    srand(0);
+
     // Hand type tests
 
     {
@@ -168,21 +170,16 @@ int main() {
 
         const Leaderboard leaderboard = get_leaderboard(community_cards, player_hands);
         std::string leaderboard_string = leaderboard_to_string(leaderboard);
-        assert(leaderboard_string == "Strength, Player List\nFULL_HOUSE (6291456): 0\nFLUSH (5242880): 2\nSTRAIGHT (4194304): 1\nPAIR (1048576): 3 4\n");
+        assert(leaderboard_string == "Showdown\n  FULL_HOUSE (6291456): 0\n  FLUSH (5242880): 2\n  STRAIGHT (4194304): 1\n  PAIR (1048576): 3 4\n");
     }
 
     // Table tests
     
     {
         Table table(2);
-        table.print();
-        table.step();
-        table.print();
-        table.step();
-        table.print();
-        table.step();
-        table.print();
-        table.step();
+        for (int i = 0; i < 100; i++) {
+            table.step();
+        }
         table.print();
     }
 

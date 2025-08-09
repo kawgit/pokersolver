@@ -22,8 +22,9 @@ class Table {
         void flop();
         void turn();
         void river();
+        void folds_to();
         void showdown(); // should be called at the end of the game, determining the winner and awarding the pot. step should only call showdown, not showdown and reset
-        
+
         // action functions
         void act(); // should be used to allow a the current player to choose an action on their turn. for now, have them do some random action
         void fold(Player player);
@@ -32,9 +33,11 @@ class Table {
 
         // helpers
         void bet(Player player, Stack amount);
+        void splash(Player player, Stack amount);
+        void award(Player player, Stack amount);
         void collect_bets();
-        bool is_folded(Player player);
-        bool is_all_in(Player player);
+        Stack collect_pots(Stack amount);
+        void end_round();
 
     private:
         CardSet deck_cards;
@@ -44,13 +47,13 @@ class Table {
         size_t num_players;
         Player closer; // if at any point this person calls / checks, the betting round ends
         Player player_to_move;
-        Stack max_bet; // the max of all player bets
-        Stack pot; // the sum of all player bets (including past betting rounds)
-        std::vector<bool> player_folds;
+        std::vector<PlayerStatus> player_statuses;
         std::vector<CardSet> player_cards;
-        std::vector<Stack> player_bets;
-        std::vector<Stack> player_pots;
+        std::vector<Stack> player_bets; // chips that player has bet this round
+        std::vector<Stack> player_pots; // chips that player has bet in all rounds
         std::vector<Stack> player_stacks;
         Stack total_chips_at_table;
+        Stack max_bet; // the max of all player bets
+        Stack pot; // the sum of all player pots
         
 };
