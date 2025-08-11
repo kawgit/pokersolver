@@ -10,14 +10,15 @@ class Table {
         Table(size_t num_players, Stack init_stack=100*BIG_BLIND); // should initialize table without dealing cards
         void print();
         void step();
+        void reset();
         void set_stack(Player player, Stack stack);
         void set_stacks(Stack stack);
+        bool is_over();
 
     private:
         void assert_ok();
 
         // card revealing functions (the step function should call one of these each time its called)
-        void reset();
         void deal();
         void flop();
         void turn();

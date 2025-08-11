@@ -16,8 +16,9 @@
     1 state for high card
 
     3 bits for hand type
-    20 bits for kickers (4 bits per card)
-    22 bits total
+    4 bits for kicker 1
+    4 bits for kicker 2
+    13 bits for high card kickers afterwards
     Thus, we can use a 32 bit int to store the hand strength
 */
 
@@ -35,17 +36,24 @@ enum HandTypes : HandType {
 };
 
 constexpr HandType get_hand_type(HandStrength strength) {
-    return strength >> 20;
+    return strength >> 21;
 }
 
 constexpr HandKickers get_hand_kickers(HandStrength strength) {
-    return strength & ((1L << 20) - 1);
+    return strength & ((1L << 21) - 1);
 }
 
-constexpr HandStrength make_hand_strength(HandType handtype, HandKickers kickers) {
-    return (handtype << 20) | kickers;
+constexpr HandStrength make_hand_strength(HandType handtype, CardSetSuitless kickers) {
+    return (handtype << 21) | kickers.to_ulong();
 }
 
-HandType get_hand_type(CardSet cards);
+constexpr HandStrength make_hand_strength(HandType handtype, Rank kicker1, CardSetSuitless kickers) {
+    return (handtype << 21) | (kicker1 << 17) | kickers.to_ulong();
+}
+
+constexpr HandStrength make_hand_strength(HandType handtype, Rank kicker1, Rank kicker2, CardSetSuitless kickers) {
+    return (handtype << 21) | (kicker1 << 17) | (kicker2 << 13) | kickers.to_ulong();
+}
+
 HandStrength get_hand_strength(CardSet cards);
-Leaderboard get_leaderboard(CardSet river_cards, std::vector<CardSet> player_cards);
+Leaderboard get_leaderboard(const CardSet river_cards, const std::vector<CardSet>& player_cards, const std::vector<PlayerStatus>& player_statuses);

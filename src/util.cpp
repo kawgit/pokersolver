@@ -105,9 +105,9 @@ std::string cardset_to_string(CardSet set) {
 }
 
 std::string leaderboard_to_string(const Leaderboard& leaderboard) {
-    std::string result = "Showdown\n";
+    std::string result = "  Leaderboard\n";
     for (const LeaderboardLevel& level : leaderboard) {
-        result += "  ";
+        result += "    ";
         result += handtype_to_string(get_hand_type(level.strength)) + " (";
         result += std::to_string(level.strength) + "):";
         for (const Player player : level.players) {

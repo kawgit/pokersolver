@@ -21,7 +21,6 @@ Table::Table(size_t num_players, Stack init_stack)
 {
   assert(num_players >= 2);
   assert(num_players <= 8);
-  reset();
   set_stacks(init_stack);
   assert_ok();
 }
@@ -38,7 +37,11 @@ void Table::assert_ok() {
     player_cards_union |= cards;
   }
 
-  assert(deck_cards.all() || player_cards_union.count() == 2 * num_players);
+  assert((player_cards_union | flop_cards | turn_cards | river_cards | deck_cards) == CARDSET_ALL);
+
+  const int num_players_busted = std::count(player_statuses.begin(), player_statuses.end(), BUSTED);
+
+  assert(deck_cards.all() || player_cards_union.count() == 2 * (num_players - num_players_busted));
   assert((player_cards_union & deck_cards).none());
   
   if (flop_cards.none()) {
@@ -86,6 +89,12 @@ void Table::set_stacks(Stack stack) {
   for (Player player = 0; player < num_players; ++player) {
     player_stacks[player] = stack;
   }
+
+  reset();
+}
+
+bool Table::is_over() {
+  return std::count(player_statuses.begin(), player_statuses.end(), BUSTED) >= num_players - 1;
 }
 
 void Table::reset() {
@@ -104,34 +113,41 @@ void Table::reset() {
   pot = 0;
   closer = 1;
   max_bet = 0;
+  player_to_move = 0;
 
-  std::fill(player_statuses.begin(), player_statuses.end(), PLAYING);
   std::fill(player_cards.begin(), player_cards.end(), CARDSET_NONE);
   std::fill(player_bets.begin(), player_bets.end(), 0);
   std::fill(player_pots.begin(), player_pots.end(), 0);
-}
-
-void Table::deal() {
-
   std::fill(player_statuses.begin(), player_statuses.end(), PLAYING);
-
+  
   for (Player player = 0; player < num_players; ++player) {
     if (player_stacks[player] == 0) {
       player_statuses[player] = BUSTED;
     }
   }
 
+  std::cout << "  Player stacks: " << ints_to_string(player_stacks) << std::endl;
+}
+
+void Table::deal() {
+
+  assert(!is_over());
+
   std::cout << "Deal" << std::endl;
 
   for (size_t i = 0; i < num_players; ++i) {
+    if (player_statuses[i] == BUSTED) {
+      continue;
+    }
+
     player_cards[i].set(draw(deck_cards));
     player_cards[i].set(draw(deck_cards));
 
     std::cout << "  Player " << static_cast<int>(i) << " was dealt " << cardset_to_string(player_cards[i]) << std::endl;
   }
 
-  bet(0, SMALL_BLIND);
-  bet(1, BIG_BLIND);
+  bet(0, std::min(SMALL_BLIND, player_stacks[0]));
+  bet(1, std::min(BIG_BLIND, player_stacks[1]));
 
   player_to_move = 2 % num_players;
   closer = 1;
@@ -166,7 +182,8 @@ void Table::turn() {
   turn_cards = flop_cards;
   turn_cards.set(draw(deck_cards));
 
-  std::cout << "  Community Cards: " << cardset_to_string(turn_cards) << std::endl;
+  std::cout << "  Community Cards: " << cardset_to_string(flop_cards);
+  std::cout << " " << cardset_to_string(turn_cards & ~flop_cards) << std::endl;
 
   player_to_move = num_players == 2 ? 1 : 0;
   closer = (player_to_move - 1) % num_players;
@@ -183,7 +200,9 @@ void Table::river() {
   river_cards = turn_cards;
   river_cards.set(draw(deck_cards));
 
-  std::cout << "  Community Cards: " << cardset_to_string(river_cards) << std::endl;
+  std::cout << "  Community Cards: " << cardset_to_string(flop_cards);
+  std::cout << " " << cardset_to_string(turn_cards & ~flop_cards);
+  std::cout << " " << cardset_to_string(river_cards & ~turn_cards) << std::endl;
 
   player_to_move = num_players == 2 ? 1 : 0;
   closer = (player_to_move - 1) % num_players;
@@ -191,21 +210,25 @@ void Table::river() {
 
 void Table::folds_to() {
 
+  
   assert(std::count_if(player_statuses.begin(), player_statuses.end(), is_player_status_in) == 1);
-
+  
   const Player player_still_in = std::find_if(player_statuses.begin(), player_statuses.end(), is_player_status_in) - player_statuses.begin();
+  
+  std::cout << "Folds to player " << player_still_in << std::endl;
+  
   const Stack pot = collect_pots(player_pots[player_still_in]);
   award(player_still_in, pot);
-
-  std::cout << "  Player stacks: " << ints_to_string(player_stacks) << std::endl;
-
+  reset();
 }
 
 void Table::showdown() {
 
-  Leaderboard leaderboard = get_leaderboard(river_cards, player_cards);
+  std::cout << "Showdown" << std::endl;
 
-  std::cout << leaderboard_to_string(leaderboard) << std::endl;
+  Leaderboard leaderboard = get_leaderboard(river_cards, player_cards, player_statuses);
+
+  std::cout << leaderboard_to_string(leaderboard);
 
   for (size_t winning_level = 0; winning_level < leaderboard.size(); winning_level++) {
     
@@ -225,8 +248,16 @@ void Table::showdown() {
       for (Player player : winners) {
         award(player, pot / winners.size());
       }
+
+      const Stack amount_awarded = pot / winners.size() * winners.size();
+
+      if (amount_awarded != pot) {
+        award(pot_limiter, pot - amount_awarded);
+      }
     }
   }
+
+  reset();
 }
 
 void Table::step() {
@@ -245,12 +276,19 @@ void Table::step() {
 
   act();
   
-  if (player_to_move == closer || std::count(player_statuses.begin(), player_statuses.end(), PLAYING) < 2) {
+  if (std::count(player_statuses.begin(), player_statuses.end(), PLAYING) < 2) {
     end_round();
+    return;
   }
-  else {
+
+  do {
+    if (player_to_move == closer) {
+      end_round();
+      return;
+    }
     player_to_move = (player_to_move + 1) % num_players;
-  }
+  } while (player_statuses[player_to_move] != PLAYING);
+  
 }
 
 void Table::end_round() {
@@ -258,16 +296,12 @@ void Table::end_round() {
 
   if (std::count_if(player_statuses.begin(), player_statuses.end(), is_player_status_in) == 1) {
     folds_to();
-    reset();
-    return;
   }
   else if (std::count(player_statuses.begin(), player_statuses.end(), PLAYING) < 2) {
     if (flop_cards.none()) flop();
     if (turn_cards.none()) turn();
     if (river_cards.none()) river();
     showdown();
-    reset();
-    return;
   }
   else if (flop_cards.none()) {
     flop();
@@ -280,7 +314,6 @@ void Table::end_round() {
   }
   else {
     showdown();
-    reset();
   }
 }
 
@@ -296,7 +329,7 @@ void Table::act() {
   } else if (action < 8) {
     match(player_to_move);
   } else {
-    raise(player_to_move, std::max(int(BIG_BLIND), 2 * max_bet - player_bets[player_to_move]));
+    raise(player_to_move, std::min(Stack(std::max(Stack(BIG_BLIND), Stack(2 * max_bet - player_bets[player_to_move]))), Stack(player_stacks[player_to_move])));
   }
 
 }
@@ -318,26 +351,24 @@ void Table::match(Player player) {
   }
   
   assert(max_bet >= 2 * player_bets[player]);
-  bet(player, max_bet - player_bets[player]);
+  bet(player, std::min(max_bet - player_bets[player], player_stacks[player]));
   std::cout << "  Player " << std::to_string(player) << " calls. The pot is now " << std::to_string(pot) << std::endl;
 }
 
 void Table::raise(Player player, Stack amount) {
-  assert(amount + player_bets[player] >= BIG_BLIND);
-  assert(amount + player_bets[player] >= 2 * max_bet);
-  assert(amount + player_bets[player] <= player_stacks[player]);
+  assert(amount + player_bets[player] >= BIG_BLIND || amount == player_stacks[player]);
+  assert(amount <= player_stacks[player]);
+  assert(amount + player_bets[player] >= 2 * max_bet || amount == player_stacks[player]);
 
   bet(player, amount);
-
   closer = (player - 1) % num_players;
-
   std::cout << "  Player " << std::to_string(player) << " raises to " << std::to_string(player_bets[player]) << ". The pot is now " << std::to_string(pot) << std::endl;
 }
 
 void Table::bet(Player player, Stack amount) {
-  assert(amount >= SMALL_BLIND);
+  assert(amount >= SMALL_BLIND || amount == player_stacks[player]);
   assert(amount <= player_stacks[player]);
-  assert(amount + player_bets[player] == max_bet || amount + player_bets[player] >= 2 * max_bet);
+  assert(amount + player_bets[player] == max_bet || amount + player_bets[player] >= 2 * max_bet || amount == player_stacks[player]);
 
   player_stacks[player] -= amount;
   player_bets[player] += amount;
@@ -345,6 +376,10 @@ void Table::bet(Player player, Stack amount) {
 
   max_bet = std::max(max_bet, player_bets[player]);
   pot += amount;
+
+  if (player_stacks[player] == 0) {
+    player_statuses[player] = ALL_IN;
+  }
 }
 
 void Table::award(Player player, Stack amount) {
@@ -374,25 +409,25 @@ Stack Table::collect_pots(Stack amount) {
 }
 
 void Table::print() {
-    std::cout << "--- Table State ---" << std::endl;
-    std::cout << "Pot: " << pot << std::endl;
-    std::cout << "Max Bet: " << max_bet << std::endl;
-    std::cout << "Player to Move: " << static_cast<int>(player_to_move) << std::endl;
-    std::cout << "Community Cards: ";
-    std::cout << cardset_to_string(river_cards | turn_cards | flop_cards) << std::endl;
+  std::cout << "--- Table State ---" << std::endl;
+  std::cout << "Pot: " << pot << std::endl;
+  std::cout << "Max Bet: " << max_bet << std::endl;
+  std::cout << "Player to Move: " << static_cast<int>(player_to_move) << std::endl;
+  std::cout << "Community Cards: ";
+  std::cout << cardset_to_string(river_cards | turn_cards | flop_cards) << std::endl;
 
-    std::cout << "Player Bets" << std::endl;
-    for (Player i = 0; i < num_players; ++i) {
-        std::cout << "  Player " << static_cast<int>(i) << " Bet: " << player_bets[i] << std::endl;
-    }
+  std::cout << "Player Bets" << std::endl;
+  for (Player i = 0; i < num_players; ++i) {
+    std::cout << "  Player " << static_cast<int>(i) << " Bet: " << player_bets[i] << std::endl;
+  }
 
-    for (Player i = 0; i < num_players; ++i) {
-        std::cout << "Player " << static_cast<int>(i) << ":" << std::endl;
-        std::cout << "  Status: " << status_to_string(player_statuses[i]) << std::endl;
-        std::cout << "  Hand: " << cardset_to_string(player_cards[i]) << std::endl;
-        std::cout << "  Stack: " << player_stacks[i] << std::endl;
-        std::cout << "  Current Bet: " << player_bets[i] << std::endl;
-        std::cout << "  Total Pot Contribution: " << player_pots[i] << std::endl;
-    }
-    std::cout << "-------------------" << std::endl;
+  for (Player i = 0; i < num_players; ++i) {
+    std::cout << "Player " << static_cast<int>(i) << ":" << std::endl;
+    std::cout << "  Status: " << status_to_string(player_statuses[i]) << std::endl;
+    std::cout << "  Hand: " << cardset_to_string(player_cards[i]) << std::endl;
+    std::cout << "  Stack: " << player_stacks[i] << std::endl;
+    std::cout << "  Current Bet: " << player_bets[i] << std::endl;
+    std::cout << "  Total Pot Contribution: " << player_pots[i] << std::endl;
+  }
+  std::cout << "-------------------" << std::endl;
 }

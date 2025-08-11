@@ -48,10 +48,3 @@ constexpr uint64_t ncr(int n, int r) {
     assert(r <= 26);
     return NCR_LOOKUP[n][r];
 }
-
-constexpr Card pop_card(CardSet& x) {
-    assert(x.any());
-    const Card index = __builtin_ctzll(x.to_ullong());
-    x.reset(index);
-    return index;
-}

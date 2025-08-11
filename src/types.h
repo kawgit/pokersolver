@@ -11,13 +11,16 @@ typedef uint8_t Card;
 typedef uint8_t Rank;
 typedef uint8_t Suit;
 typedef uint8_t Player;
-typedef int Stack;
+typedef uint32_t Stack;
 typedef std::bitset<52> CardSet;
 typedef std::bitset<13> CardSetSuitless;
 typedef uint8_t HandType;
 typedef uint32_t HandKickers;
 typedef uint32_t HandStrength;
 typedef uint8_t PlayerStatus;
+
+constexpr Stack SMALL_BLIND = 50;
+constexpr Stack BIG_BLIND = 100;
 
 struct LeaderboardLevel {
     HandStrength strength;
@@ -54,11 +57,6 @@ enum Suits : Suit {
 enum Cards : Card {
     NUM_CARDS = NUM_RANKS * NUM_SUITS,
     NO_CARD = NUM_CARDS
-};
-
-enum Stacks : Stack {
-    SMALL_BLIND = 1,
-    BIG_BLIND = 2
 };
 
 constexpr Card make_card(Rank rank, Suit suit) {
