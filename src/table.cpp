@@ -10,7 +10,7 @@
 #include "table.h"
 #include "util.h"
 
-Table::Table(size_t num_players, Stack init_stack)
+Table::Table(size_t num_players, Chips init_stack)
   : num_players(num_players),
     player_cards(num_players, 0),
     player_stacks(num_players, 0),
@@ -74,7 +74,7 @@ void Table::assert_ok() {
 
 }
 
-void Table::set_stack(Player player, Stack stack) {
+void Table::set_stack(Player player, Chips stack) {
   assert(player < num_players);
   assert(stack >= 0);
 
@@ -83,7 +83,7 @@ void Table::set_stack(Player player, Stack stack) {
   player_stacks[player] = stack;
 }
 
-void Table::set_stacks(Stack stack) {
+void Table::set_stacks(Chips stack) {
   assert(stack >= 0);
 
   for (Player player = 0; player < num_players; ++player) {
@@ -217,7 +217,7 @@ void Table::folds_to() {
   
   std::cout << "Folds to player " << player_still_in << std::endl;
   
-  const Stack pot = collect_pots(player_pots[player_still_in]);
+  const Chips pot = collect_pots(player_pots[player_still_in]);
   award(player_still_in, pot);
   reset();
 }
@@ -239,7 +239,7 @@ void Table::showdown() {
     });
     
     for (Player pot_limiter : winners) {
-      Stack pot = collect_pots(player_pots[pot_limiter]);
+      Chips pot = collect_pots(player_pots[pot_limiter]);
 
       if (pot == 0) {
         continue;
@@ -249,7 +249,7 @@ void Table::showdown() {
         award(player, pot / winners.size());
       }
 
-      const Stack amount_awarded = pot / winners.size() * winners.size();
+      const Chips amount_awarded = pot / winners.size() * winners.size();
 
       if (amount_awarded != pot) {
         award(pot_limiter, pot - amount_awarded);
@@ -329,7 +329,7 @@ void Table::act() {
   } else if (action < 8) {
     match(player_to_move);
   } else {
-    raise(player_to_move, std::min(Stack(std::max(Stack(BIG_BLIND), Stack(2 * max_bet - player_bets[player_to_move]))), Stack(player_stacks[player_to_move])));
+    raise(player_to_move, std::min(Chips(std::max(Chips(BIG_BLIND), Chips(2 * max_bet - player_bets[player_to_move]))), Chips(player_stacks[player_to_move])));
   }
 
 }
@@ -355,7 +355,7 @@ void Table::match(Player player) {
   std::cout << "  Player " << std::to_string(player) << " calls. The pot is now " << std::to_string(pot) << std::endl;
 }
 
-void Table::raise(Player player, Stack amount) {
+void Table::raise(Player player, Chips amount) {
   assert(amount + player_bets[player] >= BIG_BLIND || amount == player_stacks[player]);
   assert(amount <= player_stacks[player]);
   assert(amount + player_bets[player] >= 2 * max_bet || amount == player_stacks[player]);
@@ -365,7 +365,7 @@ void Table::raise(Player player, Stack amount) {
   std::cout << "  Player " << std::to_string(player) << " raises to " << std::to_string(player_bets[player]) << ". The pot is now " << std::to_string(pot) << std::endl;
 }
 
-void Table::bet(Player player, Stack amount) {
+void Table::bet(Player player, Chips amount) {
   assert(amount >= SMALL_BLIND || amount == player_stacks[player]);
   assert(amount <= player_stacks[player]);
   assert(amount + player_bets[player] == max_bet || amount + player_bets[player] >= 2 * max_bet || amount == player_stacks[player]);
@@ -382,7 +382,7 @@ void Table::bet(Player player, Stack amount) {
   }
 }
 
-void Table::award(Player player, Stack amount) {
+void Table::award(Player player, Chips amount) {
   player_stacks[player] += amount;
 
   std::cout << "  Player " << std::to_string(player) << " wins " << std::to_string(amount) << std::endl;
@@ -395,11 +395,11 @@ void Table::collect_bets() {
   max_bet = 0;
 }
 
-Stack Table::collect_pots(Stack amount) {
-  Stack collected = 0;
+Chips Table::collect_pots(Chips amount) {
+  Chips collected = 0;
 
   for (Player player = 0; player < num_players; ++player) {
-    const Stack amount_to_collect = std::min(player_pots[player], amount);
+    const Chips amount_to_collect = std::min(player_pots[player], amount);
     player_pots[player] -= amount_to_collect;
     pot -= amount_to_collect;
     collected += amount_to_collect;

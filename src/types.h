@@ -11,7 +11,7 @@ typedef uint8_t Card;
 typedef uint8_t Rank;
 typedef uint8_t Suit;
 typedef uint8_t Player;
-typedef uint32_t Stack;
+typedef uint32_t Chips;
 typedef std::bitset<52> CardSet;
 typedef std::bitset<13> CardSetSuitless;
 typedef uint8_t HandType;
@@ -19,8 +19,8 @@ typedef uint32_t HandKickers;
 typedef uint32_t HandStrength;
 typedef uint8_t PlayerStatus;
 
-constexpr Stack SMALL_BLIND = 50;
-constexpr Stack BIG_BLIND = 100;
+constexpr Chips SMALL_BLIND = 50;
+constexpr Chips BIG_BLIND = 100;
 
 struct LeaderboardLevel {
     HandStrength strength;
